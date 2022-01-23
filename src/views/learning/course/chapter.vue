@@ -5,7 +5,7 @@
     <h2 style="text-align: center;">发布新课程</h2>
     <el-steps :active="2" style="margin-bottom: 40px;" process-status="wait" align-center>
       <el-step title="填写课程基本信息" icon="el-icon-edit"/>
-      <el-step title="创建课程大纲上传课程视频" icon="el-icon-upload"/>
+      <el-step title="创建课程大纲上传课程课件" icon="el-icon-upload"/>
       <el-step title="确认信息并发布" icon="el-icon-circle-check"/>
     </el-steps>
 
@@ -26,7 +26,7 @@
             </span>
           </p>
 
-          <!-- 视频 -->
+          <!-- 课件 -->
           <ul class="chapterList videoList">
             <li
               v-for="video in chapter.children"
@@ -64,18 +64,20 @@
         <el-form-item label="小节标题">
           <el-input v-model="videoForm.title"/>
         </el-form-item>
-        <el-form-item label="上传视频">
+        <el-form-item label="上传课件">
+          <!--:action="BASE_API+'/video/vod/upload'"-->
           <el-upload
             :on-success="handleVodUploadSuccess"
             :on-remove="handleVodRemove"
             :on-exceed="handleUploadExceed"
+            :before-upload="handleVoduploadBefore"
             :file-list="fileList"
-            :action="BASE_API+'/video/vod/upload'"
+            :action=ACTION_URL
             :limit="1"
             class="upload-demo">
-            <el-button size="small" type="primary">上传视频</el-button>
+            <el-button size="small" type="primary">上传课件</el-button>
             <el-tooltip placement="right-end">
-              <div slot="content">最大支持1G视频</div>
+              <div slot="content">最大支持1G课件，支持的格式包括MP4、PPT、Excel、Word</div>
               <i class="el-icon-question"/>
             </el-tooltip>
           </el-upload>
@@ -113,7 +115,8 @@ export default {
         videoOriginalName: ''
       },
       BASE_API: process.env.BASE_API, // 接口API地址
-      fileList: []
+      fileList: [],
+      ACTION_URL: "testUrl"
     }
   },
   watch: {
@@ -252,7 +255,7 @@ export default {
     saveVideo() {
       // 开启loading
       this.fullscreenLoading = true
-      // 延时1.5s获取信息（阿里云刚上传上去的视频需要一些时间计算存储才能有时长大小等信息，所以延长时间提交，后台处理信息获取）
+      // 延时1.5s获取信息（阿里云刚上传上去的课件需要一些时间计算存储才能有时长大小等信息，所以延长时间提交，后台处理信息获取）
       setTimeout(() => {
         // 添加video
         video.addVideo(this.videoForm)
@@ -286,7 +289,7 @@ export default {
       video.getVideoInfoById(videoId)
         .then(response => {
           this.videoForm = response.data.video
-          // 回显视频名字信息
+          // 回显课件名字信息
           this.fileList = [{ 'name': response.data.video.videoOriginalName }]
         })
     },
@@ -341,17 +344,33 @@ export default {
       })
     },
 
-    // 视频上传相关方法
-    // 视频成功上传回调方法
+    //上传之前的判断
+    handleVoduploadBefore(file) {
+      return new Promise((resolve, reject) => {
+        this.$nextTick(() => {
+          let index = file.name.lastIndexOf(".")
+          let FileExt = file.name.substr(index+1)
+          if (['pptx','doc','docx','xlsx'].indexOf(FileExt.toLowerCase()) !== -1){
+            this.ACTION_URL=this.BASE_API+'/oss/file/uploadCourseware'
+          } else {
+            this.ACTION_URL=this.BASE_API+'/video/vod/upload'
+          }
+          resolve()
+        })
+      })
+    },
+
+    // 课件上传相关方法
+    // 课件成功上传回调方法
     handleVodUploadSuccess(response, file, fileList) {
       this.videoForm.videoSourceId = response.data.videoSourceId
       this.videoForm.videoOriginalName = file.name
     },
     // 文件个数超过限制时处理方法
     handleUploadExceed(files, fileList) {
-      this.$message.warning('上传视频数量超过限制，请删除已上传的再重新上传！')
+      this.$message.warning('上传课件数量超过限制，请删除已上传的再重新上传！')
     },
-    // 删除视频处理
+    // 删除课件处理
     handleVodRemove() {
       vod.deleteVodById(this.videoForm.videoSourceId)
         .then(response => {
